@@ -66,11 +66,220 @@ function initLeaderboard() {
         document.querySelector('.container').classList.add('split-container');
     });
 
+    // TV Mode Controller & Dynamic State
+    const tvModeBtn = document.getElementById('tv-mode-btn');
+    const exitTvBtn = document.getElementById('exit-tv-btn');
+    const tabContainer = document.querySelector('.tabs');
+    const footer = document.querySelector('footer');
+
+    let completedAthletesCache = new Map();
+    let firstLoadCompleted = false;
+    let tvScrollInterval = null;
+    let currentScrollY = 0;
+    let scrollDirection = 1; // 1 = down, -1 = up
+    let isScrollPaused = false;
+
+    function startTVScrolling() {
+        stopTVScrolling();
+        const startlistContainer = document.getElementById('startlist-tab-content');
+        if (!startlistContainer) return;
+        
+        currentScrollY = startlistContainer.scrollTop;
+        scrollDirection = 1;
+        isScrollPaused = false;
+
+        tvScrollInterval = setInterval(() => {
+            if (isScrollPaused) return;
+
+            const maxScroll = startlistContainer.scrollHeight - startlistContainer.clientHeight;
+            if (maxScroll <= 0) return;
+
+            currentScrollY += scrollDirection * 0.45; // ultra-smooth slow scrolling
+            startlistContainer.scrollTop = currentScrollY;
+
+            if (scrollDirection === 1 && startlistContainer.scrollTop >= maxScroll - 1) {
+                isScrollPaused = true;
+                setTimeout(() => {
+                    scrollDirection = -1;
+                    isScrollPaused = false;
+                }, 2000); // 2 sec pause at bottom
+            } else if (scrollDirection === -1 && startlistContainer.scrollTop <= 1) {
+                isScrollPaused = true;
+                setTimeout(() => {
+                    scrollDirection = 1;
+                    isScrollPaused = false;
+                }, 2000); // 2 sec pause at top
+            }
+        }, 50); 
+    }
+
+    function stopTVScrolling() {
+        if (tvScrollInterval) {
+            clearInterval(tvScrollInterval);
+            tvScrollInterval = null;
+        }
+    }
+
+    function triggerTVAnnouncement(name, score, rank, titleText = "Run Completed!") {
+        let popup = document.getElementById('tv-announcement-popup');
+        if (!popup) {
+            popup = document.createElement('div');
+            popup.id = 'tv-announcement-popup';
+            popup.className = 'tv-popup';
+            document.body.appendChild(popup);
+        }
+
+        let rankBadge = '';
+        if (rank === 1) rankBadge = '<div class="badge" style="background: #fbbf24; color: #78350f;">🏆 1st PLACE</div>';
+        else if (rank === 2) rankBadge = '<div class="badge" style="background: #d1d5db; color: #374151;">🥈 2nd PLACE</div>';
+        else if (rank === 3) rankBadge = '<div class="badge" style="background: #f59e0b; color: #78350f;">🥉 3rd PLACE</div>';
+        else rankBadge = `<div class="badge" style="background: rgba(255,255,255,0.2); color: white;">Rank #${rank}</div>`;
+
+        popup.innerHTML = `
+            <h2>${titleText}</h2>
+            <div class="athlete-name">${name}</div>
+            <div class="stats">${score} pts</div>
+            ${rankBadge}
+        `;
+
+        popup.classList.add('show');
+
+        // Scroll to the athlete in the leaderboard container
+        setTimeout(() => {
+            const leaderboardItems = document.querySelectorAll('#leaderboard-list .leaderboard-item');
+            if (leaderboardItems[rank - 1]) {
+                leaderboardItems[rank - 1].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                leaderboardItems[rank - 1].style.boxShadow = '0 0 35px var(--accent-color)';
+                leaderboardItems[rank - 1].style.borderColor = 'var(--accent-color)';
+            }
+        }, 600);
+
+        // Timeline:
+        // 1. Hide popup after 8 seconds (lasts longer)
+        setTimeout(() => {
+            popup.classList.remove('show');
+        }, 8000);
+
+        // 2. Stay 5 seconds after popup hides (total 13s), then scroll smoothly back to the top of the leaderboard
+        setTimeout(() => {
+            const leaderboardContainer = document.getElementById('leaderboard-tab-content');
+            if (leaderboardContainer) {
+                leaderboardContainer.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+            
+            // Remove highlight glow
+            const leaderboardItems = document.querySelectorAll('#leaderboard-list .leaderboard-item');
+            if (leaderboardItems[rank - 1]) {
+                leaderboardItems[rank - 1].style.boxShadow = '';
+                leaderboardItems[rank - 1].style.borderColor = '';
+            }
+        }, 13000);
+    }
+
+    function enterTVMode() {
+        const docEl = document.documentElement;
+        /* Commented out for local testing
+        if (docEl.requestFullscreen) {
+            docEl.requestFullscreen().catch(() => {});
+        } else if (docEl.webkitRequestFullscreen) {
+            docEl.webkitRequestFullscreen();
+        } else if (docEl.msRequestFullscreen) {
+            docEl.msRequestFullscreen();
+        }
+        */
+
+        document.body.classList.add('tv-active');
+        tabContainer.classList.add('hidden');
+        footer.classList.add('hidden');
+        tabSplit.click();
+        exitTvBtn.classList.remove('hidden');
+        setTimeout(startTVScrolling, 1000); // Wait for split animation
+    }
+
+    function exitTVMode() {
+        /* Commented out for local testing
+        if (document.fullscreenElement) {
+            document.exitFullscreen().catch(() => {});
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        } else if (document.msExitFullscreen) {
+            document.msExitFullscreen();
+        }
+        */
+
+        document.body.classList.remove('tv-active');
+        tabContainer.classList.remove('hidden');
+        footer.classList.remove('hidden');
+        exitTvBtn.classList.add('hidden');
+        stopTVScrolling();
+    }
+
+    if (tvModeBtn) {
+        tvModeBtn.addEventListener('click', enterTVMode);
+    }
+    if (exitTvBtn) {
+        exitTvBtn.addEventListener('click', exitTVMode);
+    }
+
+    document.addEventListener('fullscreenchange', () => {
+        if (!document.fullscreenElement) {
+            document.body.classList.remove('tv-active');
+            tabContainer.classList.remove('hidden');
+            footer.classList.remove('hidden');
+            exitTvBtn.classList.add('hidden');
+            stopTVScrolling();
+        }
+    });
+
     async function loadData() {
         try {
             const data = await fetchAPI('/leaderboard');
             renderLeaderboard(data);
             renderStartlist(data);
+
+            const completed = data.filter(a => a.completed === 1);
+            if (!firstLoadCompleted) {
+                firstLoadCompleted = true;
+                completed.forEach((athlete, index) => {
+                    completedAthletesCache.set(athlete.id, {
+                        name: athlete.name,
+                        score: athlete.total_score,
+                        rank: index + 1
+                    });
+                });
+            } else {
+                let newlyCompleted = [];
+                let updatedScores = [];
+
+                completed.forEach((athlete, index) => {
+                    const rank = index + 1;
+                    const cached = completedAthletesCache.get(athlete.id);
+
+                    if (!cached) {
+                        newlyCompleted.push({ athlete, rank });
+                    } else if (cached.score !== athlete.total_score) {
+                        updatedScores.push({ athlete, rank });
+                    }
+
+                    // Update local cache
+                    completedAthletesCache.set(athlete.id, {
+                        name: athlete.name,
+                        score: athlete.total_score,
+                        rank: rank
+                    });
+                });
+
+                // Trigger announcements if TV Mode is active
+                if (document.body.classList.contains('tv-active')) {
+                    if (newlyCompleted.length > 0) {
+                        const { athlete, rank } = newlyCompleted[0];
+                        triggerTVAnnouncement(athlete.name, athlete.total_score, rank, 'Run Completed!');
+                    } else if (updatedScores.length > 0) {
+                        const { athlete, rank } = updatedScores[0];
+                        triggerTVAnnouncement(athlete.name, athlete.total_score, rank, 'Score Updated!');
+                    }
+                }
+            }
         } catch (e) {
             console.error('Failed to load leaderboard data', e);
         }
@@ -162,7 +371,7 @@ function initJudge() {
         try {
             const res = await fetchAPI('/login', 'POST', { username, pin });
             if (res.role === 'judge') {
-                judge = { id: res.judgeId, username: res.username };
+                judge = { id: res.id, username: res.username };
                 sessionStorage.setItem('judge', JSON.stringify(judge));
                 showDashboard();
             } else {
@@ -549,6 +758,16 @@ function initAdmin() {
             pinEl.value = '';
         } catch(e) {
             alert(e.message);
+        }
+    });
+
+    document.getElementById('load-preset-btn').addEventListener('click', async () => {
+        if(confirm('This will replace the current startlist and scores with the 10 demo athletes. Continue?')) {
+            try {
+                await fetchAPI('/admin/load-preset', 'POST');
+            } catch(e) {
+                alert(e.message);
+            }
         }
     });
 

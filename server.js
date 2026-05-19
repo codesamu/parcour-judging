@@ -114,20 +114,14 @@ app.delete('/admin/remove-athlete/:id', (req, res) => {
 
 // Admin Reset Competition
 app.post('/admin/reset', (req, res) => {
-  const dummyAthletes = [
-    { name: 'Sarah Maier', order: 1, completed: 1, scores: [95, 92, 94, 96, 93, 95] },
-    { name: 'Johannes Brandl', order: 2, completed: 1, scores: [85, 90, 88, 92, 89, 87] },
-    { name: 'Maximilian Fuchs', order: 3, completed: 1, scores: [78, 82, 80, 85, 79, 81] },
-    { name: 'Elena Wagner', order: 4, completed: 1, scores: [88, 86, 89, 90, 87, 85] },
-    { name: 'Lukas Pichler', order: 5, completed: 1, scores: [72, 75, 74, 76, 73, 71] },
-    { name: 'Anna Steiner', order: 6, completed: 1, scores: [91, 89, 93, 92, 90, 94] },
-    { name: 'David Hofer', order: 7, completed: 0, scores: [] },
-    { name: 'Julia Gruber', order: 8, completed: 0, scores: [] },
-    { name: 'Felix Berger', order: 9, completed: 0, scores: [] },
-    { name: 'Lisa Moser', order: 10, completed: 0, scores: [] }
-  ];
+  db.resetCompetition(); // Clears completely
+  broadcastUpdate();
+  res.json({ success: true });
+});
 
-  db.resetCompetition(dummyAthletes);
+// Admin Load Preset
+app.post('/admin/load-preset', (req, res) => {
+  db.loadPreset();
   broadcastUpdate();
   res.json({ success: true });
 });

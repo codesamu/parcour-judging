@@ -66,9 +66,12 @@
             </section>
 
             <section class="card danger-zone">
-                <h3>Danger Zone</h3>
-                <p class="text-sm mb-2">This will delete all athletes and scores. Cannot be undone.</p>
-                <button id="reset-competition-btn" class="btn-danger w-full">Reset Competition</button>
+                <h3>Competition Actions</h3>
+                <p class="text-sm mb-2">Use these actions to seed a set of 10 demo athletes or clear the database completely.</p>
+                <div class="flex-row" style="gap: 0.5rem; width: 100%;">
+                    <button id="load-preset-btn" class="btn-primary flex-grow" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">Load Demo Preset</button>
+                    <button id="reset-competition-btn" class="btn-danger flex-grow">Reset Competition</button>
+                </div>
             </section>
         </main>
     </div>

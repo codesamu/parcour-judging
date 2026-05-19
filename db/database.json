@@ -72,13 +72,7 @@
       "id": 7,
       "name": "David Hofer",
       "order_index": 7,
-      "completed": 0
-    },
-    {
-      "id": 8,
-      "name": "Julia Gruber",
-      "order_index": 8,
-      "completed": 0
+      "completed": 1
     },
     {
       "id": 9,
@@ -98,7 +92,7 @@
       "id": 1,
       "athlete_id": 1,
       "judge_id": 1,
-      "score": 95
+      "score": 90
     },
     {
       "id": 2,
@@ -309,9 +303,51 @@
       "athlete_id": 6,
       "judge_id": 6,
       "score": 94
+    },
+    {
+      "id": 37,
+      "athlete_id": 7,
+      "judge_id": null,
+      "score": 50
+    },
+    {
+      "id": 38,
+      "athlete_id": 7,
+      "judge_id": null,
+      "score": 60
+    },
+    {
+      "id": 39,
+      "athlete_id": 7,
+      "judge_id": null,
+      "score": 75
+    },
+    {
+      "id": 40,
+      "athlete_id": 7,
+      "judge_id": null,
+      "score": 80
+    },
+    {
+      "id": 41,
+      "athlete_id": 7,
+      "judge_id": null,
+      "score": 65
+    },
+    {
+      "id": 42,
+      "athlete_id": 7,
+      "judge_id": null,
+      "score": 55
+    },
+    {
+      "id": 43,
+      "athlete_id": 7,
+      "judge_id": null,
+      "score": 10
     }
   ],
   "nextJudgeId": 7,
   "nextAthleteId": 11,
-  "nextScoreId": 37
+  "nextScoreId": 53
 }

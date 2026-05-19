@@ -45,8 +45,12 @@
         </main>
         <footer>
             <a href="/judge" class="btn-secondary btn-small">Judge Login</a>
+            <button id="tv-mode-btn" class="btn-secondary btn-small" style="margin-left: 0.5rem; cursor: pointer;">📺 TV Mode</button>
         </footer>
     </div>
+
+    <!-- Floating Exit TV Mode Button -->
+    <button id="exit-tv-btn" class="btn-secondary btn-small hidden" style="position: fixed; bottom: 20px; right: 20px; z-index: 10000; background: rgba(0,0,0,0.6); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 4px 12px rgba(0,0,0,0.5); font-weight: 600; padding: 0.75rem 1.25rem; border-radius: 12px; cursor: pointer; color: white; transition: all 0.3s ease;">✕ Exit TV Mode</button>
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/app.js"></script>
