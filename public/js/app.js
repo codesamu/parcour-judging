@@ -1,4 +1,7 @@
-const socket = io();
+const socket = io({
+    transports: ['websocket', 'polling'],
+    upgrade: true
+});
 
 // --- API Helpers ---
 async function fetchAPI(endpoint, method = 'GET', body = null) {
