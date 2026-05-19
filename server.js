@@ -1,9 +1,8 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
-const fs = require('fs');
+const db = require('./db');
 
 const app = express();
 const server = http.createServer(app);
@@ -17,101 +16,8 @@ const io = new Server(server, {
 const PORT = process.env.PORT || 3000;
 const ADMIN_PASSWORD = 'admin'; // Hardcoded admin password
 
-// Customize Judges Here: Add/Remove objects to change the number of judges.
-const JUDGES_CONFIG = [
-  { name: 'Judge1', pin: '1111' },
-  { name: 'Judge2', pin: '2222' },
-  { name: 'Judge3', pin: '3333' },
-  { name: 'Judge4', pin: '4444' },
-  { name: 'Judge5', pin: '5555' },
-  { name: 'Judge6', pin: '6666' }
-];
-const NUM_JUDGES = JUDGES_CONFIG.length;
-
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
-
-// Database Setup
-const dbDir = path.join(__dirname, 'db');
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir);
-}
-const dbPath = path.join(dbDir, 'database.sqlite');
-const db = new sqlite3.Database(dbPath);
-
-db.serialize(() => {
-  db.run(`CREATE TABLE IF NOT EXISTS judges (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE,
-    pin TEXT
-  )`);
-
-  db.run(`CREATE TABLE IF NOT EXISTS athletes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT,
-    order_index INTEGER,
-    completed BOOLEAN DEFAULT 0
-  )`);
-
-  db.run(`CREATE TABLE IF NOT EXISTS scores (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    athlete_id INTEGER,
-    judge_id INTEGER,
-    score INTEGER,
-    UNIQUE(athlete_id, judge_id)
-  )`);
-
-  // Initialize Judges
-  db.get("SELECT COUNT(*) AS count FROM judges", (err, row) => {
-    if (row && row.count === 0) {
-      const stmt = db.prepare("INSERT INTO judges (username, pin) VALUES (?, ?)");
-      for (const judge of JUDGES_CONFIG) {
-        stmt.run(judge.name, judge.pin);
-      }
-      stmt.finalize();
-    }
-  });
-
-  // Initialize Dummy Athletes with scores to test the leaderboard
-  db.get("SELECT COUNT(*) AS count FROM athletes", (err, row) => {
-    if (row && row.count === 0) {
-      const dummyAthletes = [
-        { name: 'Sarah Maier', order: 1, completed: 1, scores: [95, 92, 94, 96, 93, 95] },
-        { name: 'Johannes Brandl', order: 2, completed: 1, scores: [85, 90, 88, 92, 89, 87] },
-        { name: 'Maximilian Fuchs', order: 3, completed: 1, scores: [78, 82, 80, 85, 79, 81] },
-        { name: 'Elena Wagner', order: 4, completed: 1, scores: [88, 86, 89, 90, 87, 85] },
-        { name: 'Lukas Pichler', order: 5, completed: 1, scores: [72, 75, 74, 76, 73, 71] },
-        { name: 'Anna Steiner', order: 6, completed: 1, scores: [91, 89, 93, 92, 90, 94] },
-        { name: 'David Hofer', order: 7, completed: 0, scores: [] },
-        { name: 'Julia Gruber', order: 8, completed: 0, scores: [] },
-        { name: 'Felix Berger', order: 9, completed: 0, scores: [] },
-        { name: 'Lisa Moser', order: 10, completed: 0, scores: [] }
-      ];
-
-      dummyAthletes.forEach((athlete) => {
-        db.run("INSERT INTO athletes (name, order_index, completed) VALUES (?, ?, ?)", [athlete.name, athlete.order, athlete.completed], function(err) {
-          if (err) return console.error(err);
-          const athleteId = this.lastID;
-          
-          // Seed scores if completed
-          if (athlete.completed && athlete.scores.length > 0) {
-            // Get all judges
-            db.all("SELECT id FROM judges", (err, judges) => {
-              if (err) return console.error(err);
-              judges.forEach((judge, idx) => {
-                const score = athlete.scores[idx % athlete.scores.length];
-                db.run("INSERT INTO scores (athlete_id, judge_id, score) VALUES (?, ?, ?)", [athleteId, judge.id, score], (err) => {
-                  if (err) console.error(err);
-                  broadcastUpdate();
-                });
-              });
-            });
-          }
-        });
-      });
-    }
-  });
-});
 
 // Helper to broadcast updates
 const broadcastUpdate = () => {
@@ -128,30 +34,27 @@ app.post('/login', (req, res) => {
     return res.json({ success: true, role: 'admin' });
   }
 
-  db.get("SELECT * FROM judges WHERE LOWER(username) = LOWER(?) AND pin = ?", [username, pin], (err, row) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (row) {
-      res.json({ success: true, role: 'judge', judgeId: row.id, username: row.username });
-    } else {
-      res.status(401).json({ success: false, message: 'Invalid credentials' });
-    }
-  });
+  const judge = db.getJudgeByLogin(username, pin);
+  if (judge) {
+    return res.json({ success: true, role: 'judge', id: judge.id, username: judge.username });
+  }
+
+  res.status(401).json({ error: 'Invalid username or PIN' });
 });
 
-// Get Current Athlete
+// Get Current Athlete (Pending / Active)
 app.get('/current-athlete', (req, res) => {
-  db.get("SELECT * FROM athletes WHERE completed = 0 ORDER BY order_index ASC LIMIT 1", (err, athlete) => {
-    if (err) return res.status(500).json({ error: err.message });
-    
-    if (!athlete) return res.json(null); // No active athlete
+  const athletes = db.getAthletes();
+  const active = athletes.find(a => a.completed === 0);
+  
+  if (!active) {
+    return res.json({ message: 'No active athletes' });
+  }
 
-    // Also get who has submitted scores for this athlete
-    db.all("SELECT judge_id FROM scores WHERE athlete_id = ?", [athlete.id], (err, scores) => {
-      if (err) return res.status(500).json({ error: err.message });
-      const submittedJudgeIds = scores.map(s => s.judge_id);
-      res.json({ ...athlete, submittedJudgeIds });
-    });
-  });
+  // Get submitted judge IDs for this athlete
+  const scores = db.getScoresForAthlete(active.id);
+  const submittedJudgeIds = scores.map(s => s.judge_id);
+  res.json({ ...active, submittedJudgeIds });
 });
 
 // Submit/Update Score
@@ -162,32 +65,9 @@ const handleScoreSubmit = (req, res) => {
     return res.status(400).json({ error: 'Invalid score' });
   }
 
-  db.run("INSERT INTO scores (athlete_id, judge_id, score) VALUES (?, ?, ?) ON CONFLICT(athlete_id, judge_id) DO UPDATE SET score = ?", 
-    [athleteId, judgeId, score, score], 
-    function(err) {
-      if (err) return res.status(500).json({ error: err.message });
-      
-      // Check if all judges submitted for this athlete
-      db.get("SELECT COUNT(*) AS count FROM scores WHERE athlete_id = ?", [athleteId], (err, scoreRow) => {
-        if (err) return res.status(500).json({ error: err.message });
-        
-        db.get("SELECT COUNT(*) AS count FROM judges", (err, judgeRow) => {
-          if (err) return res.status(500).json({ error: err.message });
-          
-          const currentJudgeCount = judgeRow ? judgeRow.count : 0;
-          if (scoreRow.count >= currentJudgeCount && currentJudgeCount > 0) {
-            db.run("UPDATE athletes SET completed = 1 WHERE id = ?", [athleteId], (err) => {
-               if (err) console.error(err);
-               broadcastUpdate();
-            });
-          } else {
-            broadcastUpdate();
-          }
-        });
-      });
-      res.json({ success: true });
-    }
-  );
+  db.submitScore(athleteId, judgeId, score);
+  broadcastUpdate();
+  res.json({ success: true });
 };
 
 app.post('/submit-score', handleScoreSubmit);
@@ -196,33 +76,21 @@ app.put('/update-score', handleScoreSubmit);
 // Get My Score for specific athlete
 app.get('/scores/:athleteId/:judgeId', (req, res) => {
     const { athleteId, judgeId } = req.params;
-    db.get("SELECT score FROM scores WHERE athlete_id = ? AND judge_id = ?", [athleteId, judgeId], (err, row) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(row || { score: null });
-    });
+    const scoreObj = db.getScore(athleteId, judgeId);
+    res.json(scoreObj || { score: null });
 });
 
 // Get Leaderboard (calculated dynamically)
 app.get('/leaderboard', (req, res) => {
-  const query = `
-    SELECT a.id, a.name, a.order_index, a.completed, IFNULL(SUM(s.score), 0) as total_score, COUNT(s.id) as score_count
-    FROM athletes a
-    LEFT JOIN scores s ON a.id = s.athlete_id
-    GROUP BY a.id
-    ORDER BY total_score DESC, a.id ASC
-  `;
-  db.all(query, (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(rows);
-  });
+  const leaderboard = db.getLeaderboard();
+  res.json(leaderboard);
 });
 
 // Get all athletes (for admin and judge past athletes view)
 app.get('/athletes', (req, res) => {
-  db.all("SELECT * FROM athletes ORDER BY order_index ASC", (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(rows);
-  });
+  const athletes = db.getAthletes();
+  const sorted = [...athletes].sort((a,b) => a.order_index - b.order_index);
+  res.json(sorted);
 });
 
 // Admin Add Athlete
@@ -230,160 +98,81 @@ app.post('/admin/add-athlete', (req, res) => {
   const { name } = req.body;
   if (!name || name.trim() === '') return res.status(400).json({ error: 'Name required' });
 
-  db.get("SELECT IFNULL(MAX(order_index), 0) + 1 as next_order FROM athletes", (err, row) => {
-    if (err) return res.status(500).json({ error: err.message });
-    db.run("INSERT INTO athletes (name, order_index) VALUES (?, ?)", [name, row.next_order], function(err) {
-      if (err) return res.status(500).json({ error: err.message });
-      broadcastUpdate();
-      res.json({ success: true, id: this.lastID });
-    });
-  });
+  const id = db.addAthlete(name);
+  broadcastUpdate();
+  res.json({ success: true, id });
 });
 
 // Admin Remove Athlete
 app.delete('/admin/remove-athlete/:id', (req, res) => {
   const { id } = req.params;
-  db.run("DELETE FROM athletes WHERE id = ?", [id], (err) => {
-    if (err) return res.status(500).json({ error: err.message });
-    db.run("DELETE FROM scores WHERE athlete_id = ?", [id], (err) => {
-      if (err) return res.status(500).json({ error: err.message });
-      broadcastUpdate();
-      res.json({ success: true });
-    });
-  });
+  db.removeAthlete(id);
+  broadcastUpdate();
+  res.json({ success: true });
 });
 
 // Admin Reset Competition
 app.post('/admin/reset', (req, res) => {
-  db.run("DELETE FROM athletes", (err) => {
-    if (err) return res.status(500).json({ error: err.message });
-    db.run("DELETE FROM scores", (err) => {
-      if (err) return res.status(500).json({ error: err.message });
-      // sqlite_sequence is used by AUTOINCREMENT
-      db.run("DELETE FROM sqlite_sequence WHERE name='athletes' OR name='scores'", (err) => {
-        
-        // Seed dummy athletes after reset
-        const dummyAthletes = [
-          { name: 'Sarah Maier', order: 1, completed: 1, scores: [95, 92, 94, 96, 93, 95] },
-          { name: 'Johannes Brandl', order: 2, completed: 1, scores: [85, 90, 88, 92, 89, 87] },
-          { name: 'Maximilian Fuchs', order: 3, completed: 1, scores: [78, 82, 80, 85, 79, 81] },
-          { name: 'Elena Wagner', order: 4, completed: 1, scores: [88, 86, 89, 90, 87, 85] },
-          { name: 'Lukas Pichler', order: 5, completed: 1, scores: [72, 75, 74, 76, 73, 71] },
-          { name: 'Anna Steiner', order: 6, completed: 1, scores: [91, 89, 93, 92, 90, 94] },
-          { name: 'David Hofer', order: 7, completed: 0, scores: [] },
-          { name: 'Julia Gruber', order: 8, completed: 0, scores: [] },
-          { name: 'Felix Berger', order: 9, completed: 0, scores: [] },
-          { name: 'Lisa Moser', order: 10, completed: 0, scores: [] }
-        ];
+  const dummyAthletes = [
+    { name: 'Sarah Maier', order: 1, completed: 1, scores: [95, 92, 94, 96, 93, 95] },
+    { name: 'Johannes Brandl', order: 2, completed: 1, scores: [85, 90, 88, 92, 89, 87] },
+    { name: 'Maximilian Fuchs', order: 3, completed: 1, scores: [78, 82, 80, 85, 79, 81] },
+    { name: 'Elena Wagner', order: 4, completed: 1, scores: [88, 86, 89, 90, 87, 85] },
+    { name: 'Lukas Pichler', order: 5, completed: 1, scores: [72, 75, 74, 76, 73, 71] },
+    { name: 'Anna Steiner', order: 6, completed: 1, scores: [91, 89, 93, 92, 90, 94] },
+    { name: 'David Hofer', order: 7, completed: 0, scores: [] },
+    { name: 'Julia Gruber', order: 8, completed: 0, scores: [] },
+    { name: 'Felix Berger', order: 9, completed: 0, scores: [] },
+    { name: 'Lisa Moser', order: 10, completed: 0, scores: [] }
+  ];
 
-        let completedInserts = 0;
-        dummyAthletes.forEach((athlete) => {
-          db.run("INSERT INTO athletes (name, order_index, completed) VALUES (?, ?, ?)", [athlete.name, athlete.order, athlete.completed], function(err) {
-            if (err) {
-              console.error(err);
-              return;
-            }
-            const athleteId = this.lastID;
-            
-            if (athlete.completed && athlete.scores.length > 0) {
-              db.all("SELECT id FROM judges", (err, judges) => {
-                if (err || !judges || judges.length === 0) {
-                  completedInserts++;
-                  if (completedInserts === dummyAthletes.length) {
-                    broadcastUpdate();
-                  }
-                  return;
-                }
-                
-                let scoreInserts = 0;
-                judges.forEach((judge, idx) => {
-                  const score = athlete.scores[idx % athlete.scores.length];
-                  db.run("INSERT INTO scores (athlete_id, judge_id, score) VALUES (?, ?, ?)", [athleteId, judge.id, score], (err) => {
-                    if (err) console.error(err);
-                    scoreInserts++;
-                    if (scoreInserts === judges.length) {
-                      completedInserts++;
-                      if (completedInserts === dummyAthletes.length) {
-                        broadcastUpdate();
-                      }
-                    }
-                  });
-                });
-              });
-            } else {
-              completedInserts++;
-              if (completedInserts === dummyAthletes.length) {
-                broadcastUpdate();
-              }
-            }
-          });
-        });
-
-        res.json({ success: true });
-      });
-    });
-  });
+  db.resetCompetition(dummyAthletes);
+  broadcastUpdate();
+  res.json({ success: true });
 });
 
 // Config Settings
 app.get('/config', (req, res) => {
-    db.get("SELECT COUNT(*) AS count FROM judges", (err, row) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ numJudges: row ? row.count : 0 });
-    });
+    const judges = db.getJudges();
+    res.json({ numJudges: judges.length });
 });
 
 // Admin Manage Judges Endpoints
 app.get('/admin/judges', (req, res) => {
-  db.all("SELECT id, username, pin FROM judges", (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(rows);
-  });
+  res.json(db.getJudges());
 });
 
 app.post('/admin/add-judge', (req, res) => {
   const { username, pin } = req.body;
   if (!username || !pin) return res.status(400).json({ error: 'Username and PIN required' });
-  db.run("INSERT INTO judges (username, pin) VALUES (?, ?)", [username, pin], function(err) {
-    if (err) return res.status(500).json({ error: err.message });
-    broadcastUpdate();
-    res.json({ success: true, id: this.lastID });
-  });
+  const id = db.addJudge(username, pin);
+  broadcastUpdate();
+  res.json({ success: true, id });
 });
 
 app.delete('/admin/remove-judge/:id', (req, res) => {
   const { id } = req.params;
-  db.run("DELETE FROM judges WHERE id = ?", [id], (err) => {
-    if (err) return res.status(500).json({ error: err.message });
-    db.run("DELETE FROM scores WHERE judge_id = ?", [id], (err) => {
-      if (err) return res.status(500).json({ error: err.message });
-      broadcastUpdate();
-      res.json({ success: true });
-    });
-  });
+  db.removeJudge(id);
+  broadcastUpdate();
+  res.json({ success: true });
 });
 
 // Admin Update Athlete Endpoint (Update name and/or order_index)
 app.put('/admin/update-athlete/:id', (req, res) => {
   const { id } = req.params;
   const { name, order_index } = req.body;
-  db.run("UPDATE athletes SET name = ?, order_index = ? WHERE id = ?", [name, order_index, id], (err) => {
-    if (err) return res.status(500).json({ error: err.message });
-    broadcastUpdate();
-    res.json({ success: true });
-  });
+  db.updateAthlete(id, name, order_index);
+  broadcastUpdate();
+  res.json({ success: true });
 });
 
 // Admin Update Judge Endpoint (Update name and pin)
 app.put('/admin/update-judge/:id', (req, res) => {
   const { id } = req.params;
   const { username, pin } = req.body;
-  if (!username || !pin) return res.status(400).json({ error: 'Username and PIN required' });
-  db.run("UPDATE judges SET username = ?, pin = ? WHERE id = ?", [username, pin, id], (err) => {
-    if (err) return res.status(500).json({ error: err.message });
-    broadcastUpdate();
-    res.json({ success: true });
-  });
+  db.updateJudge(id, username, pin);
+  broadcastUpdate();
+  res.json({ success: true });
 });
 
 // Default to index.html for root
