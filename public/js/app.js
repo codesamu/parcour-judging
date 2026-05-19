@@ -21,37 +21,67 @@ async function fetchAPI(endpoint, method = 'GET', body = null) {
 
 // --- Leaderboard Logic ---
 function initLeaderboard() {
-    const listEl = document.getElementById('leaderboard-list');
-    const noDataEl = document.getElementById('no-data');
+    const leaderboardListEl = document.getElementById('leaderboard-list');
+    const startlistListEl = document.getElementById('startlist-list');
+    const noLeaderboardEl = document.getElementById('no-leaderboard-data');
+    const noStartlistEl = document.getElementById('no-startlist-data');
 
-    async function loadLeaderboard() {
+    // Tab Switching Logic
+    const tabLeaderboard = document.getElementById('tab-leaderboard');
+    const tabStartlist = document.getElementById('tab-startlist');
+    const tabSplit = document.getElementById('tab-split');
+    const contentLeaderboard = document.getElementById('leaderboard-tab-content');
+    const contentStartlist = document.getElementById('startlist-tab-content');
+
+    tabLeaderboard.addEventListener('click', () => {
+        tabLeaderboard.classList.add('active');
+        tabStartlist.classList.remove('active');
+        tabSplit.classList.remove('active');
+        contentLeaderboard.classList.remove('hidden');
+        contentStartlist.classList.add('hidden');
+        document.querySelector('main').classList.remove('split-view');
+        document.querySelector('.container').classList.remove('split-container');
+    });
+
+    tabStartlist.addEventListener('click', () => {
+        tabStartlist.classList.add('active');
+        tabLeaderboard.classList.remove('active');
+        tabSplit.classList.remove('active');
+        contentStartlist.classList.remove('hidden');
+        contentLeaderboard.classList.add('hidden');
+        document.querySelector('main').classList.remove('split-view');
+        document.querySelector('.container').classList.remove('split-container');
+    });
+
+    tabSplit.addEventListener('click', () => {
+        tabSplit.classList.add('active');
+        tabLeaderboard.classList.remove('active');
+        tabStartlist.classList.remove('active');
+        contentLeaderboard.classList.remove('hidden');
+        contentStartlist.classList.remove('hidden');
+        document.querySelector('main').classList.add('split-view');
+        document.querySelector('.container').classList.add('split-container');
+    });
+
+    async function loadData() {
         try {
             const data = await fetchAPI('/leaderboard');
             renderLeaderboard(data);
+            renderStartlist(data);
         } catch (e) {
-            console.error('Failed to load leaderboard', e);
+            console.error('Failed to load leaderboard data', e);
         }
     }
 
     function renderLeaderboard(data) {
-        listEl.innerHTML = '';
-        if (data.length === 0) {
-            noDataEl.classList.remove('hidden');
-            return;
-        }
-        noDataEl.classList.add('hidden');
-
-        // Only show completed athletes, or optionally show all. Requirement: "Leaderboard Shows: Athlete name, Final score" 
-        // For a live experience, we might want to show them even before they are fully completed, or maybe only completed ones.
-        // The requirements say: "Once ALL judges submit: Calculate score, mark completed. Leaderboard updates automatically."
-        // We will show all completed athletes.
+        leaderboardListEl.innerHTML = '';
         const completed = data.filter(a => a.completed === 1);
         
         if (completed.length === 0) {
-            noDataEl.classList.remove('hidden');
-            noDataEl.innerHTML = '<p>No athletes have completed their runs yet.</p>';
+            noLeaderboardEl.classList.remove('hidden');
             return;
         }
+        noLeaderboardEl.classList.add('hidden');
 
         completed.forEach((athlete, index) => {
             const item = document.createElement('div');
@@ -61,12 +91,40 @@ function initLeaderboard() {
                 <div class="name">${athlete.name}</div>
                 <div class="score">${athlete.total_score} pts</div>
             `;
-            listEl.appendChild(item);
+            leaderboardListEl.appendChild(item);
         });
     }
 
-    loadLeaderboard();
-    socket.on('state-update', loadLeaderboard);
+    function renderStartlist(data) {
+        startlistListEl.innerHTML = '';
+        if (data.length === 0) {
+            noStartlistEl.classList.remove('hidden');
+            return;
+        }
+        noStartlistEl.classList.add('hidden');
+
+        // Sort all athletes by order_index ASC
+        const sortedByOrder = [...data].sort((a, b) => a.order_index - b.order_index);
+
+        sortedByOrder.forEach((athlete) => {
+            const item = document.createElement('div');
+            item.className = 'leaderboard-item';
+            
+            const statusLabel = athlete.completed 
+                ? '<span class="status-badge completed">Finished</span>' 
+                : '<span class="status-badge pending">Next Up</span>';
+
+            item.innerHTML = `
+                <div class="rank" style="color: var(--accent-color); font-weight: 700; width: 5.5rem;">N° ${athlete.order_index}</div>
+                <div class="name">${athlete.name} ${statusLabel}</div>
+                <div class="score" style="font-size: 1.1rem; opacity: 0.7;">${athlete.completed ? athlete.total_score + ' pts' : '-'}</div>
+            `;
+            startlistListEl.appendChild(item);
+        });
+    }
+
+    loadData();
+    socket.on('state-update', loadData);
 }
 
 // --- Judge Logic ---
@@ -327,7 +385,14 @@ function initAdmin() {
     function showAdminView() {
         loginView.classList.add('hidden');
         adminView.classList.remove('hidden');
-        loadAthletes();
+        loadDashboardData();
+    }
+
+    async function loadDashboardData() {
+        await Promise.all([
+            loadAthletes(),
+            loadJudges()
+        ]);
     }
 
     async function loadAthletes() {
@@ -337,26 +402,113 @@ function initAdmin() {
             listEl.innerHTML = '';
 
             if (athletes.length === 0) {
-                listEl.innerHTML = '<p>No athletes</p>';
+                listEl.innerHTML = '<p class="text-sm">No athletes added yet.</p>';
                 return;
             }
 
-            athletes.forEach(athlete => {
+            const sortedByOrder = [...athletes].sort((a, b) => a.order_index - b.order_index);
+
+            sortedByOrder.forEach(athlete => {
                 const item = document.createElement('div');
                 item.className = 'athlete-list-item flex-between';
+                item.style.gap = '0.5rem';
                 item.innerHTML = `
-                    <span>${athlete.name} ${athlete.completed ? '(Completed)' : ''}</span>
-                    <button class="btn-danger btn-small delete-btn" data-id="${athlete.id}">Remove</button>
+                    <div class="flex-row flex-grow" style="width: 100%;">
+                        <input type="number" class="order-input" value="${athlete.order_index}" style="width: 70px; padding: 0.5rem; text-align: center; border-radius: 10px;" placeholder="No.">
+                        <input type="text" class="name-input" value="${athlete.name}" style="padding: 0.5rem; border-radius: 10px;" placeholder="Name" class="flex-grow">
+                    </div>
+                    <div class="flex-row">
+                        <button class="btn-primary btn-small save-athlete-btn" data-id="${athlete.id}">Save</button>
+                        <button class="btn-danger btn-small delete-btn" data-id="${athlete.id}">Remove</button>
+                    </div>
                 `;
                 listEl.appendChild(item);
+            });
+
+            document.querySelectorAll('.save-athlete-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = e.target.getAttribute('data-id');
+                    const container = e.target.closest('.athlete-list-item');
+                    const name = container.querySelector('.name-input').value;
+                    const order_index = parseInt(container.querySelector('.order-input').value, 10);
+                    if (!name || isNaN(order_index)) return alert('Name and Valid Start Number are required');
+
+                    try {
+                        await fetchAPI(`/admin/update-athlete/${id}`, 'PUT', { name, order_index });
+                        alert('Athlete updated!');
+                    } catch(e) {
+                        alert(e.message);
+                    }
+                });
             });
 
             document.querySelectorAll('.delete-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     const id = e.target.getAttribute('data-id');
-                    if(confirm('Are you sure?')) {
+                    if(confirm('Are you sure you want to remove this athlete?')) {
                         await fetchAPI(`/admin/remove-athlete/${id}`, 'DELETE');
-                        // Socket update handles reload
+                    }
+                });
+            });
+        } catch(e) {
+            console.error(e);
+        }
+    }
+
+    async function loadJudges() {
+        try {
+            const judges = await fetchAPI('/admin/judges');
+            const listEl = document.getElementById('admin-judges-list');
+            listEl.innerHTML = '';
+
+            if (judges.length === 0) {
+                listEl.innerHTML = '<p class="text-sm">No judges added yet.</p>';
+                return;
+            }
+
+            judges.forEach(judge => {
+                const item = document.createElement('div');
+                item.className = 'athlete-list-item flex-between';
+                item.style.gap = '0.5rem';
+                item.innerHTML = `
+                    <div class="flex-row flex-grow" style="width: 100%;">
+                        <input type="text" class="judge-name-input" value="${judge.username}" style="padding: 0.5rem; border-radius: 10px; font-weight: 600;" placeholder="Judge Name" class="flex-grow">
+                        <input type="text" class="judge-pin-input" value="${judge.pin}" style="width: 100px; padding: 0.5rem; border-radius: 10px;" placeholder="PIN">
+                    </div>
+                    <div class="flex-row">
+                        <button class="btn-primary btn-small save-judge-btn" data-id="${judge.id}">Save</button>
+                        <button class="btn-danger btn-small delete-judge-btn" data-id="${judge.id}">Remove</button>
+                    </div>
+                `;
+                listEl.appendChild(item);
+            });
+
+            document.querySelectorAll('.save-judge-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = e.target.getAttribute('data-id');
+                    const container = e.target.closest('.athlete-list-item');
+                    const username = container.querySelector('.judge-name-input').value;
+                    const pin = container.querySelector('.judge-pin-input').value;
+                    if (!username || !pin) return alert('Username and PIN are required');
+
+                    try {
+                        await fetchAPI(`/admin/update-judge/${id}`, 'PUT', { username, pin });
+                        alert('Judge updated!');
+                    } catch(e) {
+                        alert(e.message);
+                    }
+                });
+            });
+
+            document.querySelectorAll('.delete-judge-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = e.target.getAttribute('data-id');
+                    if(confirm('Are you sure you want to remove this judge?')) {
+                        try {
+                            await fetchAPI(`/admin/remove-judge/${id}`, 'DELETE');
+                        } catch(e) {
+                            alert(e.message);
+                        }
                     }
                 });
             });
@@ -379,6 +531,24 @@ function initAdmin() {
         }
     });
 
+    document.getElementById('add-judge-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const usernameEl = document.getElementById('judge-username-input');
+        const pinEl = document.getElementById('judge-pin-input');
+        const username = usernameEl.value;
+        const pin = pinEl.value;
+
+        if (!username || !pin) return;
+
+        try {
+            await fetchAPI('/admin/add-judge', 'POST', { username, pin });
+            usernameEl.value = '';
+            pinEl.value = '';
+        } catch(e) {
+            alert(e.message);
+        }
+    });
+
     document.getElementById('reset-competition-btn').addEventListener('click', async () => {
         if(confirm('This will delete all athletes and scores. Are you absolutely sure?')) {
             try {
@@ -391,7 +561,7 @@ function initAdmin() {
 
     socket.on('state-update', () => {
         if (!adminView.classList.contains('hidden')) {
-            loadAthletes();
+            loadDashboardData();
         }
     });
 }

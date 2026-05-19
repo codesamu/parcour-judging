@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +8,7 @@
     <link rel="stylesheet" href="/css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 </head>
+
 <body class="admin-page">
     <!-- Login View -->
     <div id="login-view" class="container">
@@ -16,7 +18,7 @@
         <main>
             <form id="admin-login-form" class="card">
                 <div class="form-group">
-                    <label for="admin-pin">Admin PIN</label>
+                    <label for="admin-pin">Admin password</label>
                     <input type="password" id="admin-pin" inputmode="numeric" required>
                 </div>
                 <button type="submit" class="btn-primary w-full">Login</button>
@@ -50,6 +52,18 @@
                 </div>
             </section>
 
+            <section class="card mb-4">
+                <h3>Manage Judges</h3>
+                <form id="add-judge-form" class="flex-row mb-4">
+                    <input type="text" id="judge-username-input" placeholder="Judge Name" required class="flex-grow">
+                    <input type="text" id="judge-pin-input" placeholder="PIN" required style="width: 100px;">
+                    <button type="submit" class="btn-primary">Add</button>
+                </form>
+                <div id="admin-judges-list" class="athletes-list">
+                    <!-- Populated via JS -->
+                </div>
+            </section>
+
             <section class="card danger-zone">
                 <h3>Danger Zone</h3>
                 <p class="text-sm mb-2">This will delete all athletes and scores. Cannot be undone.</p>
@@ -66,4 +80,5 @@
         });
     </script>
 </body>
+
 </html>

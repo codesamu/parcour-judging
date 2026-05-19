@@ -14,12 +14,32 @@
         <header>
             <h1>VAX Austria</h1>
         </header>
+        
+        <div class="tabs mb-4">
+            <button id="tab-leaderboard" class="tab-btn active">Leaderboard</button>
+            <button id="tab-startlist" class="tab-btn">Starting List</button>
+            <button id="tab-split" class="tab-btn">Split View</button>
+        </div>
+
         <main>
-            <div id="leaderboard-list" class="leaderboard-list">
-                <!-- Leaderboard items injected here via JS -->
+            <!-- Leaderboard Tab Content -->
+            <div id="leaderboard-tab-content">
+                <div id="leaderboard-list" class="leaderboard-list">
+                    <!-- Leaderboard items injected here via JS -->
+                </div>
+                <div id="no-leaderboard-data" class="hidden text-center">
+                    <p>No athletes have completed their runs yet.</p>
+                </div>
             </div>
-            <div id="no-data" class="hidden text-center">
-                <p>No athletes have scores yet.</p>
+
+            <!-- Starting List Tab Content -->
+            <div id="startlist-tab-content" class="hidden">
+                <div id="startlist-list" class="leaderboard-list">
+                    <!-- Starting list items injected here via JS -->
+                </div>
+                <div id="no-startlist-data" class="hidden text-center">
+                    <p>No athletes added yet.</p>
+                </div>
             </div>
         </main>
         <footer>
