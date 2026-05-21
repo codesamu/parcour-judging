@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -19,7 +21,7 @@ const io = new Server(server, {
 });
 
 const PORT = process.env.PORT || 3000;
-const ADMIN_PASSWORD = 'admin'; // Hardcoded admin password
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin'; // Loaded from env or fallback
 
 // Store objects in Express app settings so routes can access them
 app.set('io', io);
