@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
+const { validate, asyncHandler } = require('../middlewares/validation');
 
 // Helper to broadcast state update
 const broadcastUpdate = (req) => {
@@ -11,95 +12,127 @@ const broadcastUpdate = (req) => {
 };
 
 // Admin Add Athlete
-router.post('/add-athlete', (req, res) => {
+router.post('/add-athlete', validate({
+  body: {
+    name: { required: true }
+  }
+}), asyncHandler((req, res) => {
   const { name } = req.body;
-  if (!name || name.trim() === '') return res.status(400).json({ error: 'Name required' });
-
   const id = db.addAthlete(name);
   broadcastUpdate(req);
   res.json({ success: true, id });
-});
+}));
 
 // Admin Remove Athlete
-router.delete('/remove-athlete/:id', (req, res) => {
+router.delete('/remove-athlete/:id', validate({
+  params: {
+    id: { required: true, type: 'number' }
+  }
+}), asyncHandler((req, res) => {
   const { id } = req.params;
   db.removeAthlete(id);
   broadcastUpdate(req);
   res.json({ success: true });
-});
+}));
 
 // Admin Reorder Athletes Bulk
-router.put('/reorder-athletes', (req, res) => {
-  const { orders } = req.body;
-  if (!orders || !Array.isArray(orders)) {
-    return res.status(400).json({ error: 'orders array required' });
+router.put('/reorder-athletes', validate({
+  body: {
+    orders: { required: true, type: 'array' }
   }
+}), asyncHandler((req, res) => {
+  const { orders } = req.body;
   db.reorderAthletes(orders);
   broadcastUpdate(req);
   res.json({ success: true });
-});
+}));
 
 // Admin Reset Competition
-router.post('/reset', (req, res) => {
+router.post('/reset', asyncHandler((req, res) => {
   db.resetCompetition(); // Clears completely
   broadcastUpdate(req);
   res.json({ success: true });
-});
+}));
 
 // Admin Load Preset
-router.post('/load-preset', (req, res) => {
+router.post('/load-preset', asyncHandler((req, res) => {
   db.loadPreset();
   broadcastUpdate(req);
   res.json({ success: true });
-});
+}));
 
 // Admin Update Config
-router.put('/config', (req, res) => {
+router.put('/config', validate({
+  body: {
+    tvScrollMode: { required: true, enum: ['continuous', 'active'] }
+  }
+}), asyncHandler((req, res) => {
     const { tvScrollMode } = req.body;
-    if (tvScrollMode && ['continuous', 'active'].includes(tvScrollMode)) {
-        db.updateConfig({ tvScrollMode });
-        broadcastUpdate(req);
-        return res.json({ success: true });
-    }
-    res.status(400).json({ error: 'Invalid config settings' });
-});
+    db.updateConfig({ tvScrollMode });
+    broadcastUpdate(req);
+    res.json({ success: true });
+}));
 
 // Admin Manage Judges Endpoints
-router.get('/judges', (req, res) => {
+router.get('/judges', asyncHandler((req, res) => {
   res.json(db.getJudges());
-});
+}));
 
-router.post('/add-judge', (req, res) => {
+router.post('/add-judge', validate({
+  body: {
+    username: { required: true },
+    pin: { required: true }
+  }
+}), asyncHandler((req, res) => {
   const { username, pin } = req.body;
-  if (!username || !pin) return res.status(400).json({ error: 'Username and PIN required' });
   const id = db.addJudge(username, pin);
   broadcastUpdate(req);
   res.json({ success: true, id });
-});
+}));
 
-router.delete('/remove-judge/:id', (req, res) => {
+router.delete('/remove-judge/:id', validate({
+  params: {
+    id: { required: true, type: 'number' }
+  }
+}), asyncHandler((req, res) => {
   const { id } = req.params;
   db.removeJudge(id);
   broadcastUpdate(req);
   res.json({ success: true });
-});
+}));
 
 // Admin Update Athlete Endpoint (Update name and/or order_index)
-router.put('/update-athlete/:id', (req, res) => {
+router.put('/update-athlete/:id', validate({
+  params: {
+    id: { required: true, type: 'number' }
+  },
+  body: {
+    name: { required: true },
+    order_index: { required: true, type: 'number' }
+  }
+}), asyncHandler((req, res) => {
   const { id } = req.params;
   const { name, order_index } = req.body;
   db.updateAthlete(id, name, order_index);
   broadcastUpdate(req);
   res.json({ success: true });
-});
+}));
 
 // Admin Update Judge Endpoint (Update name and pin)
-router.put('/update-judge/:id', (req, res) => {
+router.put('/update-judge/:id', validate({
+  params: {
+    id: { required: true, type: 'number' }
+  },
+  body: {
+    username: { required: true },
+    pin: { required: true }
+  }
+}), asyncHandler((req, res) => {
   const { id } = req.params;
   const { username, pin } = req.body;
   db.updateJudge(id, username, pin);
   broadcastUpdate(req);
   res.json({ success: true });
-});
+}));
 
 module.exports = router;

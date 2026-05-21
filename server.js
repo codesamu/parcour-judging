@@ -33,6 +33,15 @@ app.use('/admin', adminRoutes);
 app.use('/', apiRoutes);
 app.use('/', pageRoutes);
 
+// Global Error Handling Middleware
+app.use((err, req, res, next) => {
+  console.error('Unhandled Server Error:', err.stack);
+  res.status(500).json({ 
+    error: 'Internal Server Error', 
+    message: process.env.NODE_ENV === 'production' ? 'An unexpected error occurred.' : err.message 
+  });
+});
+
 io.on('connection', (socket) => {
   console.log('A client connected:', socket.id);
   socket.on('disconnect', () => {
