@@ -62,13 +62,26 @@ router.post('/load-preset', asyncHandler((req, res) => {
 }));
 
 // Admin Update Config
-router.put('/config', validate({
-  body: {
-    tvScrollMode: { required: true, enum: ['continuous', 'active'] }
-  }
-}), asyncHandler((req, res) => {
-    const { tvScrollMode } = req.body;
-    db.updateConfig({ tvScrollMode });
+router.put('/config', asyncHandler((req, res) => {
+    const update = {};
+    if (req.body.tvScrollMode) {
+        const validModes = ['continuous', 'active'];
+        if (!validModes.includes(req.body.tvScrollMode)) {
+            return res.status(400).json({ error: 'Invalid tvScrollMode' });
+        }
+        update.tvScrollMode = req.body.tvScrollMode;
+    }
+    if (req.body.scoringFormula) {
+        const validFormulas = ['sum', 'average', 'drop-lowest', 'drop-highest'];
+        if (!validFormulas.includes(req.body.scoringFormula)) {
+            return res.status(400).json({ error: 'Invalid scoringFormula' });
+        }
+        update.scoringFormula = req.body.scoringFormula;
+    }
+    if (Object.keys(update).length === 0) {
+        return res.status(400).json({ error: 'No valid config fields provided' });
+    }
+    db.updateConfig(update);
     broadcastUpdate(req);
     res.json({ success: true });
 }));

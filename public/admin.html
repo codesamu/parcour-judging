@@ -66,6 +66,20 @@
             </section>
 
             <section class="card mb-4">
+                <h3>Scoring Formula</h3>
+                <p class="text-sm mb-2">Choose how judge scores are combined to calculate an athlete's total points.</p>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="scoring-formula-select">Formula</label>
+                    <select id="scoring-formula-select">
+                        <option value="sum">Sum — Add all scores together</option>
+                        <option value="average">Average — Mean of all scores</option>
+                        <option value="drop-lowest">Drop Lowest — Sum after removing the lowest score</option>
+                        <option value="drop-highest">Drop Highest — Sum after removing the highest score</option>
+                    </select>
+                </div>
+            </section>
+
+            <section class="card mb-4">
                 <h3>TV Mode Settings</h3>
                 <div class="form-group" style="margin-bottom: 0;">
                     <label for="tv-scroll-mode-select">Starting List Scroll Mode</label>

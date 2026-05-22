@@ -39,6 +39,12 @@ db.exec(`
 const configCount = db.prepare('SELECT COUNT(*) as count FROM config').get();
 if (configCount.count === 0) {
   db.prepare('INSERT INTO config (key, value) VALUES (?, ?)').run('tvScrollMode', 'continuous');
+  db.prepare('INSERT INTO config (key, value) VALUES (?, ?)').run('scoringFormula', 'sum');
+}
+// Ensure scoringFormula config exists (migration for existing databases)
+const hasScoringFormula = db.prepare("SELECT COUNT(*) as count FROM config WHERE key = 'scoringFormula'").get();
+if (hasScoringFormula.count === 0) {
+  db.prepare('INSERT INTO config (key, value) VALUES (?, ?)').run('scoringFormula', 'sum');
 }
 
 // Migrate data from database.json if sqlite is empty and json exists
@@ -192,19 +198,65 @@ module.exports = {
   },
 
   getLeaderboard: () => {
-    return db.prepare(`
-      SELECT 
-        a.id, 
-        a.name, 
-        a.order_index, 
-        a.completed,
-        COALESCE(SUM(s.score), 0) as total_score,
-        COUNT(s.id) as score_count
-      FROM athletes a
-      LEFT JOIN scores s ON a.id = s.athlete_id
-      GROUP BY a.id
-      ORDER BY total_score DESC, a.id ASC
-    `).all();
+    const config = module.exports.getConfig();
+    const formula = config.scoringFormula || 'sum';
+
+    // Get raw data: all athletes with their individual scores
+    const athletes = db.prepare('SELECT * FROM athletes ORDER BY order_index ASC').all();
+    const allScores = db.prepare('SELECT * FROM scores').all();
+
+    const result = athletes.map(athlete => {
+      const scores = allScores.filter(s => s.athlete_id === athlete.id).map(s => s.score);
+      let total_score = 0;
+
+      if (scores.length > 0) {
+        switch (formula) {
+          case 'average': {
+            const sum = scores.reduce((a, b) => a + b, 0);
+            total_score = Math.round(sum / scores.length);
+            break;
+          }
+          case 'drop-lowest': {
+            if (scores.length > 1) {
+              const sorted = [...scores].sort((a, b) => a - b);
+              sorted.shift(); // remove lowest
+              total_score = sorted.reduce((a, b) => a + b, 0);
+            } else {
+              total_score = scores[0];
+            }
+            break;
+          }
+          case 'drop-highest': {
+            if (scores.length > 1) {
+              const sorted = [...scores].sort((a, b) => a - b);
+              sorted.pop(); // remove highest
+              total_score = sorted.reduce((a, b) => a + b, 0);
+            } else {
+              total_score = scores[0];
+            }
+            break;
+          }
+          case 'sum':
+          default: {
+            total_score = scores.reduce((a, b) => a + b, 0);
+            break;
+          }
+        }
+      }
+
+      return {
+        id: athlete.id,
+        name: athlete.name,
+        order_index: athlete.order_index,
+        completed: athlete.completed,
+        total_score,
+        score_count: scores.length
+      };
+    });
+
+    // Sort by total_score descending, then by id ascending
+    result.sort((a, b) => b.total_score - a.total_score || a.id - b.id);
+    return result;
   },
 
   resetCompetition: (dummyAthletesList) => {
@@ -253,7 +305,7 @@ module.exports = {
     const rows = db.prepare('SELECT key, value FROM config').all();
     const config = {};
     rows.forEach(r => { config[r.key] = r.value; });
-    return Object.keys(config).length > 0 ? config : { tvScrollMode: 'continuous' };
+    return Object.keys(config).length > 0 ? config : { tvScrollMode: 'continuous', scoringFormula: 'sum' };
   },
 
   updateConfig: (newConfig) => {

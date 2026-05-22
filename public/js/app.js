@@ -728,8 +728,12 @@ function initAdmin() {
             if (selectEl && cfg.tvScrollMode) {
                 selectEl.value = cfg.tvScrollMode;
             }
+            const formulaEl = document.getElementById('scoring-formula-select');
+            if (formulaEl && cfg.scoringFormula) {
+                formulaEl.value = cfg.scoringFormula;
+            }
         } catch(e) {
-            console.error('Failed to load TV config', e);
+            console.error('Failed to load config', e);
         }
     }
 
@@ -983,6 +987,18 @@ function initAdmin() {
                 await fetchAPI('/admin/config', 'PUT', { tvScrollMode });
             } catch(e) {
                 alert('Failed to update TV config: ' + e.message);
+            }
+        });
+    }
+
+    const formulaSelectEl = document.getElementById('scoring-formula-select');
+    if (formulaSelectEl) {
+        formulaSelectEl.addEventListener('change', async (e) => {
+            const scoringFormula = e.target.value;
+            try {
+                await fetchAPI('/admin/config', 'PUT', { scoringFormula });
+            } catch(e) {
+                alert('Failed to update scoring formula: ' + e.message);
             }
         });
     }
