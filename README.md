@@ -69,3 +69,25 @@ This companion guide covers:
 5. 🔒 **Cloudflare Access Policies** to add Email OTP/OAuth layers in front of your admin and judge login pages.
 6. 🛠️ **Troubleshooting steps** for database locks, port collisions, and socket synching.
 
+---
+
+## ⚖️ License
+
+This project is licensed under a **Dual Licensing Model**:
+
+### 👤 Non-Commercial Use (Free)
+The source code is publicly accessible and free to use, modify, and share for **non-commercial, personal, educational, or research purposes only**, in accordance with the terms of our custom [LICENSE](LICENSE).
+
+### 💼 Commercial Use (Requires Commercial License)
+Any commercial use of the Software is strictly prohibited without a separate, written commercial license agreement from the copyright holder.
+
+**What qualifies as "Commercial Use"?**
+- 🏢 **Internal Business Operations**: Using the system to run internal events, training, or commercial competitions inside a business or corporate setting.
+- ☁️ **Software as a Service (SaaS)**: Hosting and offering the application as a paid or ad-supported online service.
+- 💰 **Reselling & Distribution**: Selling copies, custom modifications, or bundles of the system.
+- 💵 **Direct Revenue Generation**: Any use of the application directly linked to paid ticket sales, entry fees, sponsorships, or advertising revenue.
+
+### 📧 Contact for Commercial Licensing
+If you or your company would like to use **[Project Name]** commercially, please reach out to request a commercial license:
+
+📬 **Email**: `[Email Address]`
