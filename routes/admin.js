@@ -14,8 +14,14 @@ const broadcastUpdate = (req) => {
 
 // Global license lockdown middleware for all admin endpoints
 const requireLicense = (req, res, next) => {
-  // Always allow updating the licenseKey itself so they can unlock the app
+  // Always allow the license-related flows so admins can activate the app:
+  //  - PUT /config with licenseKey  → submit a new license key
+  //  - GET /config                  → load the admin panel and see license status
+  //  - GET /judges                  → needed by the admin dashboard to render
   if (req.method === 'PUT' && req.path === '/config' && req.body.hasOwnProperty('licenseKey')) {
+    return next();
+  }
+  if (req.method === 'GET' && (req.path === '/config' || req.path === '/judges')) {
     return next();
   }
 

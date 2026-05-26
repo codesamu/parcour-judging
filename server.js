@@ -30,10 +30,11 @@ app.set('ADMIN_PASSWORD', ADMIN_PASSWORD);
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Mount modular routes
+// Mount page routes first so GET /admin serves the HTML page
+// before the admin API middleware can intercept it
+app.use('/', pageRoutes);
 app.use('/admin', adminRoutes);
 app.use('/', apiRoutes);
-app.use('/', pageRoutes);
 
 // Global Error Handling Middleware
 app.use((err, req, res, next) => {
