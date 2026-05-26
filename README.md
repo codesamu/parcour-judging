@@ -90,4 +90,4 @@ Any commercial use of the Software is strictly prohibited without a separate, wr
 ### 📧 Contact for Commercial Licensing
 If you or your company would like to use **[Project Name]** commercially, please reach out to request a commercial license:
 
-📬 **Email**: `[Email Address]`
+📬 **Email**: `samufro3@gmail.com`
