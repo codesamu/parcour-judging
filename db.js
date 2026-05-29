@@ -41,6 +41,7 @@ if (configCount.count === 0) {
   db.prepare('INSERT INTO config (key, value) VALUES (?, ?)').run('tvScrollMode', 'continuous');
   db.prepare('INSERT INTO config (key, value) VALUES (?, ?)').run('scoringFormula', 'sum');
   db.prepare('INSERT INTO config (key, value) VALUES (?, ?)').run('appName', 'LineScore');
+  db.prepare('INSERT INTO config (key, value) VALUES (?, ?)').run('appIconUrl', '/favicon.ico');
 }
 // Ensure scoringFormula config exists (migration for existing databases)
 const hasScoringFormula = db.prepare("SELECT COUNT(*) as count FROM config WHERE key = 'scoringFormula'").get();
@@ -51,6 +52,11 @@ if (hasScoringFormula.count === 0) {
 const hasAppName = db.prepare("SELECT COUNT(*) as count FROM config WHERE key = 'appName'").get();
 if (hasAppName.count === 0) {
   db.prepare('INSERT INTO config (key, value) VALUES (?, ?)').run('appName', 'LineScore');
+}
+// Ensure appIconUrl config exists (migration for existing databases)
+const hasAppIconUrl = db.prepare("SELECT COUNT(*) as count FROM config WHERE key = 'appIconUrl'").get();
+if (hasAppIconUrl.count === 0) {
+  db.prepare('INSERT INTO config (key, value) VALUES (?, ?)').run('appIconUrl', '/favicon.ico');
 }
 
 // Migrate data from database.json if sqlite is empty and json exists
@@ -311,7 +317,7 @@ module.exports = {
     const rows = db.prepare('SELECT key, value FROM config').all();
     const config = {};
     rows.forEach(r => { config[r.key] = r.value; });
-    return Object.keys(config).length > 0 ? config : { tvScrollMode: 'continuous', scoringFormula: 'sum', appName: 'LineScore' };
+    return Object.keys(config).length > 0 ? config : { tvScrollMode: 'continuous', scoringFormula: 'sum', appName: 'LineScore', appIconUrl: '/favicon.ico' };
   },
 
   updateConfig: (newConfig) => {

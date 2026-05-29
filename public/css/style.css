@@ -155,6 +155,54 @@ select {
     cursor: pointer;
 }
 
+input[type="file"] {
+    width: 100%;
+    font-family: inherit;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+input[type="file"]::file-selector-button {
+    margin-right: 0.75rem;
+    padding: 0.6rem 1rem;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.7);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.icon-upload-form {
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr) auto auto;
+    gap: 0.75rem;
+    align-items: center;
+    margin-top: 1rem;
+}
+
+.icon-preview-wrap {
+    width: 48px;
+    height: 48px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    background: white;
+    overflow: hidden;
+}
+
+.icon-preview {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+}
+
+.icon-upload-controls label {
+    margin-bottom: 0.35rem;
+}
+
 input[type="text"]:focus,
 input[type="password"]:focus,
 input[type="number"]:focus,
@@ -735,4 +783,13 @@ body.tv-active #startlist-tab-content::-webkit-scrollbar {
     filter: grayscale(80%) blur(0.5px);
 }
 
+@media (max-width: 640px) {
+    .icon-upload-form {
+        grid-template-columns: 48px minmax(0, 1fr);
+    }
 
+    .icon-upload-form button {
+        grid-column: span 2;
+        width: 100%;
+    }
+}

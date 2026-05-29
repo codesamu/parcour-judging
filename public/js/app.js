@@ -49,6 +49,26 @@ function applyAppName(appName) {
     }
 }
 
+function applyAppIcon(appIconUrl) {
+    const iconUrl = (appIconUrl || '/favicon.ico').trim() || '/favicon.ico';
+    let iconLink = document.querySelector('link[rel="icon"]');
+    if (!iconLink) {
+        iconLink = document.createElement('link');
+        iconLink.rel = 'icon';
+        document.head.appendChild(iconLink);
+    }
+
+    const urlWithoutQuery = iconUrl.split('?')[0];
+    const isIco = urlWithoutQuery.endsWith('.ico');
+    iconLink.type = isIco ? 'image/x-icon' : '';
+    iconLink.href = iconUrl;
+
+    const preview = document.getElementById('app-icon-preview');
+    if (preview) {
+        preview.src = iconUrl;
+    }
+}
+
 function showLicenseLockOverlay() {
     if (document.getElementById('license-lock-overlay')) return;
     
@@ -76,6 +96,7 @@ async function checkBranding() {
         const cfg = await fetchAPI('/config');
         applyBrandingVisibility(cfg.isLicensed);
         applyAppName(cfg.appName);
+        applyAppIcon(cfg.appIconUrl);
         return cfg;
     } catch(e) {
         console.error('Failed to check branding', e);
@@ -400,6 +421,7 @@ function initLeaderboard() {
             ]);
             applyBrandingVisibility(cfg.isLicensed);
             applyAppName(cfg.appName);
+            applyAppIcon(cfg.appIconUrl);
             
             if (!cfg.isLicensed) {
                 showLicenseLockOverlay();
@@ -534,6 +556,7 @@ function initJudge() {
             numJudges = cfg.numJudges;
             applyBrandingVisibility(cfg.isLicensed);
             applyAppName(cfg.appName);
+            applyAppIcon(cfg.appIconUrl);
             
             if (!cfg.isLicensed) {
                 showLicenseLockOverlay();
@@ -761,6 +784,8 @@ function initAdmin() {
     const loginView = document.getElementById('login-view');
     const adminView = document.getElementById('admin-view');
 
+    checkBranding();
+
     const adminStr = sessionStorage.getItem('admin');
     if (adminStr === 'true') {
         showAdminView();
@@ -810,6 +835,7 @@ function initAdmin() {
             const cfg = await fetchAPI('/config');
             applyBrandingVisibility(cfg.isLicensed);
             applyAppName(cfg.appName);
+            applyAppIcon(cfg.appIconUrl);
             updateLicenseUI(cfg);
             const appNameEl = document.getElementById('app-name-input');
             if (appNameEl && cfg.appName) {
@@ -1109,6 +1135,75 @@ function initAdmin() {
                 alert('Failed to update app name: ' + e.message);
             }
         });
+    }
+
+    const appIconForm = document.getElementById('app-icon-form');
+    if (appIconForm) {
+        const appIconInput = document.getElementById('app-icon-input');
+        const appIconStatus = document.getElementById('app-icon-status');
+        const resetAppIconBtn = document.getElementById('reset-app-icon-btn');
+
+        appIconInput.addEventListener('change', () => {
+            const file = appIconInput.files && appIconInput.files[0];
+            if (!file) return;
+
+            const previewUrl = URL.createObjectURL(file);
+            const preview = document.getElementById('app-icon-preview');
+            if (preview) {
+                preview.onload = () => URL.revokeObjectURL(previewUrl);
+                preview.src = previewUrl;
+            }
+        });
+
+        appIconForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const file = appIconInput.files && appIconInput.files[0];
+            if (!file) return alert('Choose an icon image first');
+            if (file.size > 512 * 1024) return alert('Icon image must be 512 KB or smaller');
+
+            try {
+                const imageData = normalizeIconDataURL(await readFileAsDataURL(file), file);
+                const result = await fetchAPI('/admin/icon', 'POST', { imageData });
+                applyAppIcon(result.appIconUrl);
+                appIconInput.value = '';
+                showAppIconStatus('Icon updated.', false);
+            } catch(e) {
+                showAppIconStatus('Failed to update icon: ' + e.message, true);
+            }
+        });
+
+        resetAppIconBtn.addEventListener('click', async () => {
+            try {
+                await fetchAPI('/admin/config', 'PUT', { appIconUrl: '/favicon.ico' });
+                applyAppIcon('/favicon.ico');
+                appIconInput.value = '';
+                showAppIconStatus('Icon reset to the default favicon.', false);
+            } catch(e) {
+                showAppIconStatus('Failed to reset icon: ' + e.message, true);
+            }
+        });
+
+        function showAppIconStatus(message, isError) {
+            appIconStatus.textContent = message;
+            appIconStatus.style.color = isError ? 'var(--danger-color)' : 'var(--success-color)';
+            appIconStatus.classList.remove('hidden');
+        }
+    }
+
+    function readFileAsDataURL(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(new Error('Could not read selected file'));
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function normalizeIconDataURL(dataUrl, file) {
+        if (dataUrl.startsWith('data:;base64,') && file.name.toLowerCase().endsWith('.ico')) {
+            return dataUrl.replace('data:;base64,', 'data:image/x-icon;base64,');
+        }
+        return dataUrl;
     }
 
     // License Key settings form handling

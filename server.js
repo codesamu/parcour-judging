@@ -27,7 +27,7 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin'; // Loaded from env
 app.set('io', io);
 app.set('ADMIN_PASSWORD', ADMIN_PASSWORD);
 
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Mount page routes first so GET /admin serves the HTML page

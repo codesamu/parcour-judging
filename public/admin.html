@@ -49,6 +49,18 @@
                     <input type="text" id="app-name-input" placeholder="App Name" maxlength="80" required class="flex-grow">
                     <button type="submit" class="btn-primary">Save</button>
                 </form>
+                <form id="app-icon-form" class="icon-upload-form">
+                    <div class="icon-preview-wrap">
+                        <img id="app-icon-preview" src="/favicon.ico" alt="" class="icon-preview">
+                    </div>
+                    <div class="icon-upload-controls">
+                        <label for="app-icon-input">Page Icon</label>
+                        <input type="file" id="app-icon-input" accept="image/png,image/jpeg,image/gif,image/webp,image/x-icon,.ico">
+                    </div>
+                    <button type="submit" class="btn-primary btn-small">Upload</button>
+                    <button type="button" id="reset-app-icon-btn" class="btn-secondary btn-small">Reset</button>
+                </form>
+                <div id="app-icon-status" class="text-sm hidden"></div>
             </section>
 
             <section class="card mb-4">
