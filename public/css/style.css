@@ -64,6 +64,10 @@ body::after {
     transition: max-width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.container.wide-container {
+    max-width: 1180px;
+}
+
 /* Headers */
 header {
     text-align: center;
@@ -590,6 +594,89 @@ footer {
     box-shadow: 
         inset 1px 1px 0px rgba(255, 255, 255, 0.9),
         0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.admin-tabs {
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 520px;
+}
+
+.database-card {
+    overflow: hidden;
+}
+
+.db-section {
+    margin-bottom: 1.75rem;
+}
+
+.db-section:last-child {
+    margin-bottom: 0;
+}
+
+.db-section h4 {
+    margin-bottom: 0.75rem;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.db-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.db-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.45);
+}
+
+.db-table {
+    width: 100%;
+    min-width: 520px;
+    border-collapse: collapse;
+    font-size: 0.86rem;
+}
+
+.db-table th,
+.db-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    white-space: nowrap;
+}
+
+.db-table th {
+    background: rgba(0, 0, 0, 0.025);
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.db-table tbody tr:last-child th,
+.db-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.db-table-meta {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.db-empty {
+    color: var(--text-secondary);
+}
+
+@media (max-width: 800px) {
+    .db-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* Split View Layout */

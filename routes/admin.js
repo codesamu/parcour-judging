@@ -202,6 +202,10 @@ router.get('/judges', asyncHandler((req, res) => {
   res.json(db.getJudges());
 }));
 
+router.get('/database', asyncHandler((req, res) => {
+  res.json(db.getDatabaseSnapshot());
+}));
+
 router.post('/add-judge', validate({
   body: {
     username: { required: true },

@@ -42,7 +42,11 @@
             <h2>Admin Panel</h2>
             <button id="logout-btn" class="btn-secondary btn-small">Logout</button>
         </header>
-        <main>
+        <div class="tabs mb-4 admin-tabs">
+            <button id="tab-admin-controls" class="tab-btn active">Controls</button>
+            <button id="tab-admin-database" class="tab-btn">Database</button>
+        </div>
+        <main id="admin-controls-tab-content">
             <section class="card mb-4">
                 <h3>Display Settings</h3>
                 <form id="app-name-form" class="flex-row">
@@ -131,6 +135,17 @@
                 <div class="flex-row" style="gap: 0.5rem; width: 100%;">
                     <button id="load-preset-btn" class="btn-primary flex-grow" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">Load Demo Preset</button>
                     <button id="reset-competition-btn" class="btn-danger flex-grow">Reset Competition</button>
+                </div>
+            </section>
+        </main>
+        <main id="admin-database-tab-content" class="hidden">
+            <section class="card mb-4 database-card">
+                <div class="flex-between mb-4">
+                    <h3 style="margin-bottom: 0;">Database View</h3>
+                    <button id="refresh-database-btn" class="btn-secondary btn-small">Refresh</button>
+                </div>
+                <div id="admin-database-view">
+                    <p class="text-sm">Loading database...</p>
                 </div>
             </section>
         </main>

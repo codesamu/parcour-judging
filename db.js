@@ -209,6 +209,39 @@ module.exports = {
     return db.prepare('SELECT * FROM scores WHERE athlete_id = ?').all(parseInt(athleteId, 10));
   },
 
+  getDatabaseSnapshot: () => {
+    const athletes = db.prepare('SELECT * FROM athletes ORDER BY order_index ASC, id ASC').all();
+    const judges = db.prepare('SELECT * FROM judges ORDER BY id ASC').all();
+    const scores = db.prepare(`
+      SELECT
+        scores.id,
+        scores.athlete_id,
+        athletes.name AS athlete_name,
+        scores.judge_id,
+        judges.username AS judge_name,
+        scores.score
+      FROM scores
+      LEFT JOIN athletes ON athletes.id = scores.athlete_id
+      LEFT JOIN judges ON judges.id = scores.judge_id
+      ORDER BY athletes.order_index ASC, athletes.id ASC, judges.id ASC
+    `).all();
+
+    const scoreLookup = new Map(scores.map(score => [`${score.athlete_id}:${score.judge_id}`, score.score]));
+    const matrix = athletes.map(athlete => ({
+      athlete_id: athlete.id,
+      athlete_name: athlete.name,
+      order_index: athlete.order_index,
+      completed: athlete.completed,
+      scores: judges.map(judge => ({
+        judge_id: judge.id,
+        judge_name: judge.username,
+        score: scoreLookup.has(`${athlete.id}:${judge.id}`) ? scoreLookup.get(`${athlete.id}:${judge.id}`) : null
+      }))
+    }));
+
+    return { athletes, judges, scores, matrix };
+  },
+
   getLeaderboard: () => {
     const config = module.exports.getConfig();
     const formula = config.scoringFormula || 'sum';

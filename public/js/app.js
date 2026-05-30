@@ -783,6 +783,10 @@ function initJudge() {
 function initAdmin() {
     const loginView = document.getElementById('login-view');
     const adminView = document.getElementById('admin-view');
+    const adminControlsTab = document.getElementById('tab-admin-controls');
+    const adminDatabaseTab = document.getElementById('tab-admin-database');
+    const adminControlsContent = document.getElementById('admin-controls-tab-content');
+    const adminDatabaseContent = document.getElementById('admin-database-tab-content');
 
     checkBranding();
 
@@ -828,6 +832,143 @@ function initAdmin() {
             loadJudges(),
             loadTVConfig()
         ]);
+    }
+
+    if (adminControlsTab && adminDatabaseTab && adminControlsContent && adminDatabaseContent) {
+        adminControlsTab.addEventListener('click', () => {
+            adminControlsTab.classList.add('active');
+            adminDatabaseTab.classList.remove('active');
+            adminControlsContent.classList.remove('hidden');
+            adminDatabaseContent.classList.add('hidden');
+            adminView.classList.remove('wide-container');
+        });
+
+        adminDatabaseTab.addEventListener('click', () => {
+            adminDatabaseTab.classList.add('active');
+            adminControlsTab.classList.remove('active');
+            adminDatabaseContent.classList.remove('hidden');
+            adminControlsContent.classList.add('hidden');
+            adminView.classList.add('wide-container');
+            loadDatabaseView();
+        });
+    }
+
+    function escapeHTML(value) {
+        return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        }[char]));
+    }
+
+    async function loadDatabaseView() {
+        const container = document.getElementById('admin-database-view');
+        if (!container) return;
+
+        try {
+            const data = await fetchAPI('/admin/database');
+            const judges = data.judges || [];
+            const athletes = data.athletes || [];
+            const scores = data.scores || [];
+            const matrix = data.matrix || [];
+
+            if (athletes.length === 0 && judges.length === 0 && scores.length === 0) {
+                container.innerHTML = '<p class="text-sm">The database is empty.</p>';
+                return;
+            }
+
+            const matrixHeader = judges.map(judge => `<th>${escapeHTML(judge.username)}<span class="db-table-meta">#${judge.id}</span></th>`).join('');
+            const matrixRows = matrix.map(row => {
+                const scoreCells = row.scores.map(score => `<td>${score.score === null ? '<span class="db-empty">-</span>' : escapeHTML(score.score)}</td>`).join('');
+                return `
+                    <tr>
+                        <th>N° ${escapeHTML(row.order_index)} ${escapeHTML(row.athlete_name)}<span class="db-table-meta">#${row.athlete_id} ${row.completed ? 'completed' : 'pending'}</span></th>
+                        ${scoreCells}
+                    </tr>
+                `;
+            }).join('');
+
+            const athleteRows = athletes.map(athlete => `
+                <tr>
+                    <td>${escapeHTML(athlete.id)}</td>
+                    <td>${escapeHTML(athlete.name)}</td>
+                    <td>${escapeHTML(athlete.order_index)}</td>
+                    <td>${athlete.completed ? 'Yes' : 'No'}</td>
+                </tr>
+            `).join('');
+
+            const judgeRows = judges.map(judge => `
+                <tr>
+                    <td>${escapeHTML(judge.id)}</td>
+                    <td>${escapeHTML(judge.username)}</td>
+                    <td>${escapeHTML(judge.pin)}</td>
+                </tr>
+            `).join('');
+
+            const scoreRows = scores.map(score => `
+                <tr>
+                    <td>${escapeHTML(score.id)}</td>
+                    <td>${escapeHTML(score.athlete_name || 'Missing athlete')} <span class="db-table-meta">#${escapeHTML(score.athlete_id)}</span></td>
+                    <td>${escapeHTML(score.judge_name || 'Missing judge')} <span class="db-table-meta">#${escapeHTML(score.judge_id)}</span></td>
+                    <td>${escapeHTML(score.score)}</td>
+                </tr>
+            `).join('');
+
+            container.innerHTML = `
+                <div class="db-section">
+                    <h4>Scores by Athlete and Judge</h4>
+                    <div class="db-table-wrap">
+                        <table class="db-table">
+                            <thead>
+                                <tr>
+                                    <th>Athlete</th>
+                                    ${matrixHeader}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${matrixRows || '<tr><td colspan="999">No athletes added yet.</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="db-grid">
+                    <div class="db-section">
+                        <h4>Athletes</h4>
+                        <div class="db-table-wrap">
+                            <table class="db-table">
+                                <thead><tr><th>ID</th><th>Name</th><th>Order</th><th>Completed</th></tr></thead>
+                                <tbody>${athleteRows || '<tr><td colspan="4">No athletes.</td></tr>'}</tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="db-section">
+                        <h4>Judges</h4>
+                        <div class="db-table-wrap">
+                            <table class="db-table">
+                                <thead><tr><th>ID</th><th>Name</th><th>PIN</th></tr></thead>
+                                <tbody>${judgeRows || '<tr><td colspan="3">No judges.</td></tr>'}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="db-section">
+                    <h4>Scores Table</h4>
+                    <div class="db-table-wrap">
+                        <table class="db-table">
+                            <thead><tr><th>ID</th><th>Athlete</th><th>Judge</th><th>Score</th></tr></thead>
+                            <tbody>${scoreRows || '<tr><td colspan="4">No scores submitted yet.</td></tr>'}</tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        } catch(e) {
+            container.innerHTML = `<p class="error">Failed to load database: ${escapeHTML(e.message)}</p>`;
+        }
     }
 
     async function loadTVConfig() {
@@ -1096,6 +1237,11 @@ function initAdmin() {
         }
     });
 
+    const refreshDatabaseBtn = document.getElementById('refresh-database-btn');
+    if (refreshDatabaseBtn) {
+        refreshDatabaseBtn.addEventListener('click', loadDatabaseView);
+    }
+
     const tvSelectEl = document.getElementById('tv-scroll-mode-select');
     if (tvSelectEl) {
         tvSelectEl.addEventListener('change', async (e) => {
@@ -1280,6 +1426,9 @@ function initAdmin() {
     socket.on('state-update', () => {
         if (!adminView.classList.contains('hidden')) {
             loadDashboardData();
+            if (adminDatabaseContent && !adminDatabaseContent.classList.contains('hidden')) {
+                loadDatabaseView();
+            }
         }
     });
 }
